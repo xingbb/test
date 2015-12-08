@@ -1,0 +1,56 @@
+#!/usr/bin/python
+#encoding=utf-8
+
+# 生成帮助文件，如：python createhelp.py webserver-online.xml > help 可以从webserver-online中提取testSuite,testCase,testStep和description信息到help文件中
+
+#import getopt
+import os
+import sys
+import re
+import HTMLParser
+
+reload(sys) 
+sys.setdefaultencoding('utf-8')
+
+parser = HTMLParser.HTMLParser()
+def filter(filelist):
+        flag = 0
+        result = []
+        for line in filelist:
+            if (line.strip() == ""):
+                continue
+            if (line.find("<con:description xsi:nil=") != -1):
+                continue
+
+            if (line.find("<con:testSuite") != -1):
+                result.append("\ntestSuite: " + line.split("name=\"")[1].split("\"")[0] + " .")
+            elif (line.find("<con:testCase") != -1):
+                result.append("\n    testCase: " + line.split("name=\"")[1].split("\"")[0] + " .")
+            elif (line.find("<con:testStep") != -1):
+                result.append("        testStep: " + line.split("name=\"")[1].split("\"")[0] + " .")
+            elif (line.find("<con:description") != -1):
+                if (len(result) > 0):
+                    line = line.strip().replace("<con:description>","")
+                    line = line.replace("</con:description>","")
+                    result[-1] += " ------>" + line 
+                    #result.append(line)
+            elif (line.find("assert ") != -1):
+                line = line.strip().replace("</script>","").replace("</scriptText>","")
+                result.append("            " + parser.unescape(line))
+            elif (line.find("<con:tearDownScript>") != -1):
+                line = line.strip().replace("<con:tearDownScript>","        teardown: ").replace("//","")
+                result.append(line)
+            elif (line.find("<con:setupScript>") != -1):
+                line = line.strip().replace("<con:setupScript>","        setup: ").replace("//","")
+                result.append(line)
+        return result
+
+if __name__ == "__main__":
+        source = sys.argv[1]
+        filelist = []
+        fop = open(source,'r')
+        filelist = fop.readlines()
+        fop.close()
+        result = filter(filelist)
+        for line in result:
+            print line

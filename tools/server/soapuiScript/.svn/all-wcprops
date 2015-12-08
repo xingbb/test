@@ -1,0 +1,65 @@
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/outfox/!svn/ver/543484/incubator/Test/ynote/server_autotest/script
+END
+gethelp.py
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/outfox/!svn/ver/490099/incubator/Test/ynote/server_autotest/script/gethelp.py
+END
+failDescritions.txt
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/outfox/!svn/ver/512570/incubator/Test/ynote/server_autotest/script/failDescritions.txt
+END
+gettestdata.py
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/outfox/!svn/ver/488519/incubator/Test/ynote/server_autotest/script/gettestdata.py
+END
+testreport.py
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/outfox/!svn/ver/540433/incubator/Test/ynote/server_autotest/script/testreport.py
+END
+updatestr.py
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/outfox/!svn/ver/458662/incubator/Test/ynote/server_autotest/script/updatestr.py
+END
+checkynote.py
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/outfox/!svn/ver/478341/incubator/Test/ynote/server_autotest/script/checkynote.py
+END
+createhelp.py
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/outfox/!svn/ver/490099/incubator/Test/ynote/server_autotest/script/createhelp.py
+END
+file.py
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/outfox/!svn/ver/489541/incubator/Test/ynote/server_autotest/script/file.py
+END
+enableTestCase.py
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/outfox/!svn/ver/543484/incubator/Test/ynote/server_autotest/script/enableTestCase.py
+END
+release.sh
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/outfox/!svn/ver/538917/incubator/Test/ynote/server_autotest/script/release.sh
+END

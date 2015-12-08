@@ -1,0 +1,316 @@
+#!/usr/bin/python -u
+# coding=utf-8
+
+# author: kuyan
+# create-time: 2013.3.27
+
+import os
+import sys
+import time
+import shutil
+import json
+
+# webserver的host地址
+web_host = "http://tb089x.corp.youdao.com:9999"
+# 用户帐号
+userid = "ynote_ms_monitor@163.com"
+# 分享用户的帐号
+share_userid = "ynote_ms_monitor@126.com"
+
+# 获取usermeta信息的url路径
+usermeta_url = "/yws/mapi/user?method=get"
+# 获取usermeta信息的url路径
+filemeta_url = "/yws/mapi/filemeta?bv=-1&dp=-1&p=/&method=get"
+# 获取中转站中资源列表的url路径
+hublist_url = "/yws/mapi/hub?v=-1&method=list"
+# 获取回收站中笔记列表的url路径
+trashlist_url = "/yws/mapi/trash?th=false&method=get"
+# 获取分享列表的url路径
+sharelist_url = "/yws/mapi/share/receiver?method=list&ts=1319366332"
+
+usermeta_path = "usermeta"
+filemeta_path = "filemeta"
+hublist_path = "hublist"
+trashlist_path = "trashlist"
+sharelist_path = "sharelist"
+tmp = "tmpfile"
+
+# 处理中文字符编码的问题
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
+def set_user(user):
+    global userid,share_userid,dirpath
+    userid = user + "@163.com"
+    share_userid = user + "@126.com"
+    dirpath = "/disk3/test/hudson/workspace/data/" + userid + "/"
+
+# 获取请求的url
+def get_url(host,url,userid):
+    return host + url + "&X_USER_ID=" + userid    
+
+# 将结果存储到指定的目录下
+def store_info(tmpfile, path):
+    if (os.path.exists(path)):
+        os.remove(path)
+    if (not os.path.exists(os.path.dirname(path))):
+        os.makedirs(os.path.dirname(path))
+
+    currenttime = time.strftime("%Y%m%d%H%M%S",time.localtime(time.time()))
+    shutil.copyfile(tmpfile,path + ".before")
+    shutil.copyfile(tmpfile,path + "." + currenttime)
+    os.remove(tmpfile)
+
+# 从文件读取内容到json串中
+def get_json(path):
+    f = file(path)
+    jsoner = json.load(f)
+    f.close()
+    return jsoner
+
+# 获取识别集合元素的关键字
+def get_key(set):
+    map = {"files":"p"}
+    return map[set]
+
+# 获取字符串的类型：list,dict,str
+def get_type(string):
+    typestr = str(type(string))
+    if(typestr.find("dict") > -1):
+        return "dict"
+    elif(typestr.find("list") > -1):
+        return "list"
+    else:
+        return "str"
+
+# 判断json对象的差异是否为预期
+def check_except(jsonObj,key):
+    # 不进行差异对比的属性
+    keylist = '"ll","dg","uwor","u","q","hvc","dp","lp","df","esq","rv"'
+    if(("\"" + key + "\"") in keylist):
+        return True
+    # 被永久删除的笔记，晚上会被回收
+    elif(jsonObj.has_key("er") and jsonObj["er"] == 1):
+        return True
+    # entry path为/的filemeta，其版本号在晚上回收笔记时会发生改变
+    elif(jsonObj.has_key("p") and jsonObj["p"] == "/" and key == "v"):
+        return True
+    # 被删除的笔记本，晚上会被回收
+    elif(jsonObj.has_key("r") and jsonObj["r"] == 1 and jsonObj.has_key("d") and jsonObj["d"] == 1):
+        return True
+    # unshare的笔记，接受方sharelist中笔记的files中ng与tg属性，会在晚上被设置为空,ct与mt也可能发生改变,因此这类unshare的笔记的files不检测
+    elif(jsonObj.has_key("fi") and jsonObj["v"] > -1 and key == "files" and len(jsonObj["files"]) == 1):
+        return True
+    # unshare的笔记本，接受方sharelist中笔记本的files中笔记的属性，有可能会变动，不检测
+    elif(jsonObj.has_key("fi") and jsonObj["v"] > -1 and jsonObj.has_key("si") and jsonObj["si"]["r"] == 1 and key == "files"):
+        return True
+
+
+# 比较两个json对象
+def check_jsonObject(json_before,json_after,header):
+    json_before = json.loads(json.dumps(json_before))
+    json_after = json.loads(json.dumps(json_after))
+    for before in json_before:
+        if(not check_except(json_before,before)):
+            for after in json_after:
+                if (before == after):
+                    btype = get_type(json_before[before])
+                    atype = get_type(json_after[after])
+                    if((btype == "dict") and (atype == "dict")):
+                        head = header + " " + before
+                        check_jsonObject(json_before[before],json_after[after],head)
+                    elif((btype == "list") and (atype == "list")):
+                        key = get_key(before)
+                        head = header + " " + before
+                        check_jsonArray(json_before[before],json_after[after],key,head)
+                    elif(json_before[before] != json_after[after]): 
+                        if(not check_except(json_before,before)):
+                            print header + "  " + before + "    before:" + json.dumps(json_before[before],ensure_ascii=False) + "    after:" + json.dumps(json_after[after],ensure_ascii=False)
+                    else:
+                        pass
+    
+# 比较两个json list的差异    
+def check_jsonArray(json_before,json_after,key,header):
+    # 检测相比于before,after的元素差异
+    flag = 0 
+    for i in json_before:
+        flag = 0
+        head = header + "  " + key + "=" + i[key]
+        for m in json_after:
+            if(i[key] == m[key]):
+                flag = 1
+                check_jsonObject(i,m,head)
+                break
+        if (flag == 0 and (not check_except(i,key))):
+            print head + "  in json_before not found in json_after"
+
+    # 检测相比于before，在after中新增的元素
+    for i in json_after:
+        flag = 0
+        head = header + "  " + key + "=" + i[key]
+        for m in json_before:
+            if(i[key] == m[key]):
+                flag = 1
+                break
+        if (flag == 0 and (not check_except(i,key))):
+            print head + "  in json_after not found in json_before"
+
+# 检测usermeta的差异
+def check_info_usermeta(tmpfile, path):
+    json_before = get_json(path + ".before")
+    json_after = get_json(tmpfile)
+
+    check_jsonObject(json_before,json_after,"")
+
+# 检测filemeta的差异
+def check_info_filemeta(tmpfile, path):
+    json_before = get_json(path + ".before")
+    json_after = get_json(tmpfile)
+
+    # 检测相比于before,after的元素差异
+    check_jsonArray(json_before,json_after,"p","")
+
+# 检测trashlist的差异
+def check_info_trashlist(tmpfile, path):
+    json_before = get_json(path + ".before")
+    json_after = get_json(tmpfile)
+    
+    if (json_before[0] != json_after[0]): 
+        print "trashnumber    before:" + str(json_before[0]) + "    after:" + str(json_after[0])
+
+    check_jsonArray(json_before[1],json_after[1],"p","")
+
+# 检测sharelist的差异
+def check_info_sharelist(tmpfile, path):
+    json_before = get_json(path + ".before")
+    json_after = get_json(tmpfile)
+    
+    check_jsonArray(json_before,json_after,"fi","")
+
+# 检测hublist的差异
+def check_info_hublist(tmpfile, path):
+    json_before = get_json(path + ".before")
+    json_after = get_json(tmpfile)
+
+    # 检测相比于before,after的元素差异
+    check_jsonArray(json_before,json_after,"p","")
+
+def get_usermeta():
+    url = get_url(web_host,usermeta_url,userid)
+    path = dirpath + usermeta_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    store_info(tmpfile, path)
+
+def check_usermeta():
+    url = get_url(web_host,usermeta_url,userid)
+    path = dirpath + usermeta_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    print "\n*********** USERMETA difference:"
+    check_info_usermeta(tmpfile, path)
+
+def get_filemeta():
+    url = get_url(web_host,filemeta_url,userid)
+    path = dirpath + filemeta_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    store_info(tmpfile, path)
+
+def check_filemeta():
+    url = get_url(web_host,filemeta_url,userid)
+    path = dirpath + filemeta_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    print "\n*********** FILEMETA difference:"
+    check_info_filemeta(tmpfile, path)
+
+def get_trashlist():
+    url = get_url(web_host,trashlist_url,userid)
+    path = dirpath + trashlist_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    store_info(tmpfile, path)
+
+def check_trashlist():
+    url = get_url(web_host,trashlist_url,userid)
+    path = dirpath + trashlist_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    print "\n*********** TRASHLIST difference:"
+    check_info_trashlist(tmpfile, path)
+
+def get_sharelist():
+    url = get_url(web_host,sharelist_url,share_userid)
+    path = dirpath + sharelist_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    store_info(tmpfile, path)
+
+def check_sharelist():
+    url = get_url(web_host,sharelist_url,share_userid)
+    path = dirpath + sharelist_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    print "\n*********** SHARELIST difference:"
+    check_info_sharelist(tmpfile, path)
+
+def get_hublist():
+    url = get_url(web_host,hublist_url,userid)
+    path = dirpath + hublist_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    store_info(tmpfile, path)
+
+def check_hublist():
+    url = get_url(web_host,hublist_url,userid)
+    path = dirpath + hublist_path
+    tmpfile = dirpath + tmp;
+    os.system("wget \"" + url + "\" -O " + tmpfile + ">/dev/null 2>&1")
+    print "\n*********** HUBLIST difference:"
+    check_info_hublist(tmpfile, path)
+
+if __name__=="__main__":
+    argvs = sys.argv
+    user = argvs[3] 
+    set_user(user)
+    if(argvs[1] == "get"):
+        if(argvs[2] == "usermeta"):
+            get_usermeta()
+        elif(argvs[2] == "filemeta"):
+            get_filemeta()
+        elif(argvs[2] == "trashlist"):
+            get_trashlist()
+        elif(argvs[2] == "sharelist"):
+            get_sharelist()
+        elif(argvs[2] == "hublist"):
+            get_hublist()
+        elif(argvs[2] == "all"):
+            get_usermeta()
+            get_filemeta()
+            get_trashlist()
+            get_sharelist()
+            get_hublist()
+        else:
+            print("Unknown Argv:" + argvs[2])
+    elif(argvs[1] == "check"):
+        if(argvs[2] == "usermeta"):
+            check_usermeta()
+        elif(argvs[2] == "filemeta"):
+            check_filemeta()
+        elif(argvs[2] == "trashlist"):
+            check_trashlist()
+        elif(argvs[2] == "sharelist"):
+            check_sharelist()
+        elif(argvs[2] == "hublist"):
+            check_hublist()
+        elif(argvs[2] == "all"):
+            check_usermeta()
+            check_filemeta()
+            check_trashlist()
+            check_sharelist()
+            check_hublist()
+        else:
+            print("Unknown Argv:" + argvs[2])
+    else:
+        print("Unkown Argv:" + argvs[1])

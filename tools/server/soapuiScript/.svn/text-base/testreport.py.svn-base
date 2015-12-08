@@ -1,0 +1,128 @@
+#!/usr/bin/python
+#encoding=utf-8
+
+# 对生成的xml测试报告进行修改，把测试用例的信息和case失败的错误信息加进去，便于从web页面查看
+# 如: python testreport.py searchserver-monitor_milestone.xml log/
+
+import os
+import sys
+import re
+import commands
+import createhelp
+import gethelp
+import gettestdata
+from xml.etree import ElementTree
+
+errorfiles=[]
+
+# 将每个测试用例集的xml测试报告进行优化
+def createreport(testfile,path,testsuite):
+        # 记录所有用例详细信息的临时文件,由soapui在teardown时生成
+        datapath = os.path.join(path,'testdata')
+        if os.path.exists(datapath):
+            report = []
+            fop = open(datapath,'r')
+            datafile = fop.readlines()
+            fop.close()
+        else:
+            datafile = None
+			
+        reportfile = os.path.join(path,"TEST-" + testsuite + ".xml")
+        root = ElementTree.fromstring(open(reportfile,'r').read())
+        testcaseList = root.getiterator("testcase")
+        for index in range(len(testcaseList)):
+            testcase = testcaseList[index]
+            failure = testcase.getiterator("failure")
+            # 对失败的用例进行处理
+            if len(failure) > 0:
+                testcaseName = testcase.attrib["name"]
+                sameTestcaseNum = 0
+                # 查看该用例是否被重跑过 
+                for subIndex in range(len(testcaseList)-index-1):
+                    if testcaseList[subIndex+index+1].attrib["name"] == testcaseName:
+                        sameTestcaseNum += 1
+                try:
+                    # 被重跑的用例第1次跑的结果无效
+                    if sameTestcaseNum > 0:
+                        root.remove(testcase)
+                    # 有效的失败用例，将进一步细化测试报告
+                    else:
+                        helpinfo = gethelpinfo(testfile,datafile,testsuite,testcaseName)
+                        errorinfo = geterrorfile(path,testsuite,testcaseName)
+                        info = helpinfo + "\n######################## 测试步骤失败的详细信息 ######################## \n" + errorinfo
+                        if failure[0].text == None:
+                            failure[0].text = "<![CDATA[" + info + "]]>"     
+                        else:
+                            failure[0].text += "<![CDATA[" + info + "]]>"     
+                except Exception as err:
+                    print err
+                
+            # 对成功的用例进行处理
+            else:
+                testcaseName = testcase.attrib["name"]
+                # 将成功的用例后面重跑的结果都去掉 
+                for subIndex in range(len(testcaseList)-index-1):
+                    if testcaseList[subIndex+index+1].attrib["name"] == testcaseName:
+                        try:
+                            root.remove(testcaseList[subIndex+index+1])
+                        except Exception as err:
+                            continue
+                
+        tree = ElementTree.ElementTree(root)
+        tree.write(reportfile,'utf8')
+
+# 获取用例的帮助信息
+def gethelpinfo(filelist,datalist,testsuite,testcase):
+        helpsource = createhelp.filter(filelist)
+        helpinfo = gethelp.get_help(helpsource,testsuite,testcase)
+        help = "\n\n######################## 测试用例说明 ######################## \n"
+        for line in helpinfo:
+            help = help + line + '\n'
+        if datalist != None:
+            datainfo = gettestdata.get_data(datalist,testsuite,testcase)
+            for line in datainfo:
+                help = help + line + '\n'
+        return help 
+
+# 获取详细的错误信息
+def geterrorfile(path,testsuite,testcase):
+        global errorfiles
+        testsuite = testsuite.replace(' ','_').replace('-','').replace("&amp;","&").replace(":","")
+        testcase = testcase.replace(' ','_').replace('-','').replace("&amp;","&").replace(":","")
+        file = ""
+        error = ""
+        for line in errorfiles:
+            if (line.find(testsuite) != -1 and line.find(testcase) != -1):
+                file = os.path.join(path,line.strip())        
+        if (file != ""):
+            errorfile = []
+            fop = open(file,'r')
+            errorfile = fop.readlines()
+            fop.close()
+            for line in errorfile:
+                error = error + line
+        return error
+        
+if __name__ == "__main__":        
+        global errorfiles
+        testfile = sys.argv[1]
+        path = sys.argv[2]
+        test = []
+        fop = open(testfile,'r')
+        test = fop.readlines()
+        fop.close()
+
+        # 收集有失败测试用例的testSuite列表
+        arraylist = os.listdir(path)
+        testsuites = []
+        for line in arraylist:
+            if (line.find(".xml") != -1):
+                testsuites.append(line.split("-")[1].split(".")[0])
+            elif (line.find(".txt") != -1):
+                errorfiles.append(line)
+        testsuites = list(set(testsuites))
+
+        # 在这些testSuite的xml文件中，为失败的用例添加描述信息和详细错误信息
+        for line in testsuites:
+            line = line.strip()
+            createreport(test,path,line)

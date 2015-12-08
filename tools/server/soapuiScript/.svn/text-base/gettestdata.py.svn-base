@@ -1,0 +1,43 @@
+#!/usr/bin/python
+#encoding=utf-8
+
+# 从测试数据文件中获取某个testCase的临时测试数据，如：python gettestdata.py testdata notebook "create notebook" 从testdata文件中获取测试用例集notebook的测试用例"create notebook"的临时测试数据
+
+#import getopt
+import os
+import sys
+import re
+
+def get_data(filelist,testsuite,testcase):
+    suiteflag=0
+    caseflag=0
+    result = []
+    result.append("测试数据: ")
+    for line in filelist:
+        if (line.find("testSuite: " + testsuite + "\n") != -1):
+            suiteflag=1
+        elif (suiteflag == 1 and caseflag == 0 and line.find("testCase: " + testcase + "\n") != -1):
+            caseflag=1
+        elif (suiteflag == 1 and caseflag == 1 and line.find("testCase: ") == -1 and line.find("testSuite: ") == -1):
+            result.append(line.strip('\n'))
+        elif (suiteflag == 1 and caseflag == 1 and (line.find("testCase: ") != -1 or line.find("testSuite: ") != -1)):
+            break
+        else: 
+            continue
+    if(suiteflag == 0):
+        result.append("testSuite not found")
+    elif(caseflag == 0):
+        result.append("testCase not found")
+    return result
+
+if __name__ == "__main__":
+    filename = sys.argv[1]
+    testsuite = sys.argv[2]
+    testcase = sys.argv[3]
+    filelist = []
+    fop = open(filename,'r')
+    filelist = fop.readlines()
+    fop.close()
+    result = get_data(filelist, testsuite, testcase)
+    for line in result:
+        print line

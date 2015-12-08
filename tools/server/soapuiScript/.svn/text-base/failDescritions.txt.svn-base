@@ -1,0 +1,12 @@
+"Message[DISTRIBUTE_SERVICE_EXCEPTION]: Fail to list the file metas" :  storeserver处理请求失败
+"Message[UNKNOWN_EXCEPTION]: org.springframework.web.util.NestedServletException" :    服务端报未知的错误
+"Message[INVALID_PARAMETER]" :    发送给服务端的请求有问题，某些参数值不符合预期
+"Message[SERVICE_BUSY_EXCEPTION]: Fail to borrow auto tag thrift client" :    自动标签生成失败,说明标签服务器有问题
+"Message[DATA_TRANSMISSION_FAILURE]" :    数据传输失败
+"Message[LOCK_EXPIRED_EXCEPTION]" :    前端操作太快，服务端处理不过来
+"Connection to http://tb089x.corp.youdao.com:9999 refused" :    milestone的webserver服务挂了
+"Message[RESOURCE_NOT_EXIST]: Fail to affire new share for userId" :    分享笔记本的一个bug
+"Message[SERVER_RPC_EXCEPTION]" :    storeserver处理请求失败
+"java.net.SocketTimeoutException: Read timed out" :    server端长时间不返回结果
+"Message[USER_SPACE_FULL]: User space exceeds the quota" :    用户空间满了，需要添加用户空间，或删除一些不用的笔记
+"[Script Assertion]" :    测试用例中某个断言失败了

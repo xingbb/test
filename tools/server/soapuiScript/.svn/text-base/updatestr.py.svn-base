@@ -1,0 +1,40 @@
+#!/usr/bin/python
+#encoding=utf-8
+
+#import getopt
+import os
+import sys
+import re
+
+def update_string(filename, matchstr, updatestr):
+        filelist = []
+        fop = open(filename,'r')
+        filelist = fop.readlines()
+        fop.close()
+        fop = open(filename,'w')
+        p = re.compile(matchstr)
+        for line in filelist:
+                if (re.search(p,line)):
+                        line = p.sub(updatestr,line,1)
+                fop.writelines(line)
+        fop.close()
+
+def update_string_offset(filename, matchstr, updatestr, offset):
+        filelist = []
+        fop = open(filename,'r')
+        filelist = fop.readlines()
+        fop.close()
+        fop = open(filename,'w')
+        p = re.compile(matchstr)
+        for line in filelist:
+                if (re.search(p,line)):
+                        line = p.sub(updatestr,line,1)
+                fop.writelines(line)
+        fop.close()
+
+if __name__ == "__main__":
+        filename = sys.argv[1]
+        matchstr = sys.argv[2]
+        updatestr = sys.argv[3]
+        update_string(filename, matchstr, updatestr)
+        

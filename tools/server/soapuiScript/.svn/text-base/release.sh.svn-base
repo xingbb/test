@@ -1,0 +1,140 @@
+# 将server自动化的xml文件进行配置修改，并发布到hudson的workspace当中，执行：sh release.sh
+
+xmlpath="../" # xml文件存放的目录
+datapath="/disk3/test/hudson/server_auto" # server_auto的目录，绝对路径
+workspace="/disk3/test/hudson/workspace" # hudson中workspace的目录
+
+# copy 测试用例的xml文件到hudson的workspace下面
+mkdir $xmlpath/tmp
+cp -r $xmlpath/conf/*.xml $xmlpath/tmp/
+cp file.py $xmlpath/tmp/
+
+tmpxmlpath="$xmlpath/tmp"
+sed -i 's#\\data\\#/data/#g' $tmpxmlpath/*.xml
+sed -i 's:${#Project#datapath}\\log\\testdata:log/testdata:g' $tmpxmlpath/*.xml
+sed -i 's#temp\\#temp/#g' $tmpxmlpath/*.xml
+sed -i 's#createdata\\#createdata/#g' $tmpxmlpath/*.xml
+sed -i s#E:\\\\\\\\ynote\\\\\\\\soapui\\\\\\\\server_auto#$datapath#g $tmpxmlpath/*.xml
+
+cd $tmpxmlpath
+python file.py offset storeserver.xml '<con:name>mode</con:name>' '<con:value>online</con:value>' 1
+cp storeserver.xml storeserver-online.xml
+python file.py offset storeserver.xml '<con:name>mode</con:name>' '<con:value>milestone</con:value>' 1
+cp storeserver.xml storeserver-milestone.xml
+python file.py offset storeserver.xml '<con:name>mode</con:name>' '<con:value>monitor_online</con:value>' 1
+cp storeserver.xml storeserver-monitor_online.xml
+python file.py offset storeserver.xml '<con:name>mode</con:name>' '<con:value>monitor_milestone</con:value>' 1
+cp storeserver.xml storeserver-monitor_milestone.xml
+python file.py offset storeserver.xml '<con:name>mode</con:name>' '<con:value>monitor</con:value>' 1
+cp storeserver.xml monitor-storeserver-milestone.xml
+python file.py offset storeserver.xml '<con:name>mode</con:name>' '<con:value>testing</con:value>' 1
+cp storeserver.xml storeserver-test.xml
+
+python file.py offset webserver.xml '<con:name>mode</con:name>' '<con:value>online</con:value>' 1
+cp webserver.xml webserver-online.xml
+python file.py offset webserver.xml '<con:name>mode</con:name>' '<con:value>milestone</con:value>' 1
+cp webserver.xml webserver-milestone.xml
+python file.py offset webserver.xml '<con:name>mode</con:name>' '<con:value>monitor_online</con:value>' 1
+cp webserver.xml webserver-monitor_online.xml
+python file.py offset webserver.xml '<con:name>mode</con:name>' '<con:value>monitor_milestone</con:value>' 1
+cp webserver.xml webserver-monitor_milestone.xml
+python file.py offset webserver.xml '<con:name>mode</con:name>' '<con:value>monitor</con:value>' 1
+cp webserver.xml monitor-webserver-milestone.xml 
+python file.py offset webserver.xml '<con:name>mode</con:name>' '<con:value>testing</con:value>' 1
+cp webserver.xml webserver-test.xml 
+
+python file.py offset accountserver.xml '<con:name>mode</con:name>' '<con:value>online</con:value>' 1
+cp accountserver.xml accountserver-online.xml 
+python file.py offset accountserver.xml '<con:name>mode</con:name>' '<con:value>milestone</con:value>' 1
+cp accountserver.xml accountserver-milestone.xml 
+python file.py offset accountserver.xml '<con:name>mode</con:name>' '<con:value>monitor_online</con:value>' 1
+cp accountserver.xml accountserver-monitor_online.xml 
+python file.py offset accountserver.xml '<con:name>mode</con:name>' '<con:value>monitor_milestone</con:value>' 1
+cp accountserver.xml accountserver-monitor_milestone.xml 
+
+python file.py offset pushserver.xml '<con:name>mode</con:name>' '<con:value>online</con:value>' 1
+cp pushserver.xml pushserver-online.xml 
+python file.py offset pushserver.xml '<con:name>mode</con:name>' '<con:value>milestone</con:value>' 1
+cp pushserver.xml pushserver-milestone.xml 
+python file.py offset pushserver.xml '<con:name>mode</con:name>' '<con:value>monitor_online</con:value>' 1
+cp pushserver.xml pushserver-monitor_online.xml 
+python file.py offset pushserver.xml '<con:name>mode</con:name>' '<con:value>monitor_milestone</con:value>' 1
+cp pushserver.xml pushserver-monitor_milestone.xml 
+
+python file.py offset searchserver.xml '<con:name>mode</con:name>' '<con:value>online</con:value>' 1
+cp searchserver.xml searchserver-online.xml 
+python file.py offset searchserver.xml '<con:name>mode</con:name>' '<con:value>milestone</con:value>' 1
+cp searchserver.xml searchserver-milestone.xml 
+python file.py offset searchserver.xml '<con:name>mode</con:name>' '<con:value>monitor_online</con:value>' 1
+cp searchserver.xml searchserver-monitor_online.xml 
+python file.py offset searchserver.xml '<con:name>mode</con:name>' '<con:value>monitor_milestone</con:value>' 1
+cp searchserver.xml searchserver-monitor_milestone.xml 
+python file.py offset searchserver.xml '<con:name>mode</con:name>' '<con:value>testing</con:value>' 1
+cp searchserver.xml searchserver-test.xml 
+
+
+python file.py offset group.xml '<con:name>mode</con:name>' '<con:value>online</con:value>' 1
+cp group.xml group-online.xml 
+python file.py offset group.xml '<con:name>mode</con:name>' '<con:value>milestone</con:value>' 1
+cp group.xml group-milestone.xml 
+python file.py offset group.xml '<con:name>mode</con:name>' '<con:value>monitor_online</con:value>' 1
+cp group.xml group-monitor_online.xml 
+python file.py offset group.xml '<con:name>mode</con:name>' '<con:value>monitor_milestone</con:value>' 1
+cp group.xml group-monitor_milestone.xml 
+python file.py offset group.xml '<con:name>mode</con:name>' '<con:value>testing</con:value>' 1
+cp group.xml group-test.xml 
+
+python file.py offset createdataForAutotest.xml '<con:name>mode</con:name>' '<con:value>testing</con:value>' 1
+cp createdataForAutotest.xml createdata-test.xml 
+
+cd -
+cp $tmpxmlpath/storeserver-milestone.xml $workspace/Storeserver_milestone
+cp $tmpxmlpath/storeserver-online.xml $workspace/Storeserver_online
+cp $tmpxmlpath/storeserver-monitor_milestone.xml $workspace/Storeserver_milestone_monitor
+cp $tmpxmlpath/storeserver-monitor_online.xml $workspace/Storeserver_online_monitor
+cp $tmpxmlpath/storeserver-test.xml $workspace/Storeserver_BY_URL
+cp $tmpxmlpath/createdata-test.xml $workspace/Storeserver_BY_URL
+
+cp $tmpxmlpath/webserver-milestone.xml $workspace/Webserver_milestone
+cp $tmpxmlpath/webserver-online.xml $workspace/Webserver_online
+cp $tmpxmlpath/webserver-monitor_milestone.xml $workspace/Webserver_milestone_monitor
+cp $tmpxmlpath/webserver-monitor_online.xml $workspace/Webserver_online_monitor
+cp $tmpxmlpath/webserver-test.xml $workspace/Webserver_BY_URL
+cp $tmpxmlpath/createdata-test.xml $workspace/Webserver_BY_URL
+
+cp $tmpxmlpath/accountserver-milestone.xml $workspace/Accountserver_milestone
+cp $tmpxmlpath/accountserver-milestone.xml $workspace/Accountserver_BY_URL
+cp $tmpxmlpath/accountserver-online.xml $workspace/Accountserver_online
+cp $tmpxmlpath/accountserver-monitor_milestone.xml $workspace/Accountserver_milestone_monitor
+cp $tmpxmlpath/accountserver-monitor_online.xml $workspace/Accountserver_online_monitor
+
+cp $tmpxmlpath/pushserver-milestone.xml $workspace/Pushserver_milestone
+cp $tmpxmlpath/pushserver-milestone.xml $workspace/Pushserver_BY_URL
+cp $tmpxmlpath/pushserver-online.xml $workspace/Pushserver_online
+cp $tmpxmlpath/pushserver-monitor_milestone.xml $workspace/Pushserver_milestone_monitor
+cp $tmpxmlpath/pushserver-monitor_online.xml $workspace/Pushserver_online_monitor
+
+cp $tmpxmlpath/monitor*milestone.xml $workspace/Monitor_milestone
+
+cp $tmpxmlpath/searchserver-milestone.xml $workspace/Searchserver_milestone
+cp $tmpxmlpath/searchserver-online.xml $workspace/Searchserver_online
+cp $tmpxmlpath/searchserver-monitor_milestone.xml $workspace/Searchserver_milestone_monitor
+cp $tmpxmlpath/searchserver-monitor_online.xml $workspace/Searchserver_online_monitor
+cp $tmpxmlpath/searchserver-test.xml $workspace/Searchserver_BY_URL
+
+cp $tmpxmlpath/group-milestone.xml $workspace/Group_milestone
+cp $tmpxmlpath/group-online.xml $workspace/Group_online
+cp $tmpxmlpath/group-monitor_milestone.xml $workspace/Group_milestone_monitor
+cp $tmpxmlpath/group-monitor_online.xml $workspace/Group_online_monitor
+cp $tmpxmlpath/group-test.xml $workspace/Group_BY_URL
+
+cp $tmpxmlpath/createdataForPerformance.xml $workspace/CreateData
+
+rm -rf $tmpxmlpath
+
+# copy 脚本到hudson相应的job中
+ls -l /disk3/test/hudson/workspace/ |grep -E 'milestone|online|URL'|awk '{print $9}'|while read line
+do
+    path=$workspace/$line
+    cp *.py $path
+done

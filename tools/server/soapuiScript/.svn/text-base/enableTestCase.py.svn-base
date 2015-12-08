@@ -1,0 +1,176 @@
+#!/usr/bin/python
+#encoding=utf-8
+
+# 对soapui的xml文件进行修改，设置指定的用例来执行,包括3个参数：
+# 参数1：xml文件
+# 参数2：指定运行的用例集或用例，以逗号，隔开
+# 参数3：忽略的用例集，不会对这些用例集做任何处理，保持这些用例集在原来xml文件中的运行状态
+
+# 执行使用方法示例，如:
+# 1. 设置只运行2个用例
+#    python enableTestCase.py webserver.xml "webserver.note.pc get pic note from web,webserver.group.move nbs into group" "set_up,tear_down,lib,invitation" 
+# 2. 设置运行所有用例 
+#    python enableTestCase.py webserver.xml "webserver" "set_up,tear_down,lib,invitation" 
+# 3. 设置运行group用例集 
+#    python enableTestCase.py webserver.xml "webserver.group" "set_up,tear_down,lib,invitation" 
+
+import os
+import sys
+import re
+import commands
+import createhelp
+import gethelp
+import gettestdata
+from xml.etree import ElementTree
+
+# 通过匹配字符串来设置用例是否可运行
+def runByUpdateStr(xmlFile,enableStr,excludeStr):
+    enableList = enableStr.split(',')
+    excludeStr = excludeStr.replace(",","|")
+    filelist = []
+    fop = open(xmlFile,'r')
+    filelist = fop.readlines()
+    fop.close()
+
+    # 将所有的用例都设置为不运行
+    #matchstr = "<con:(testSuite|testCase).*name=\"[^(set_up)(tear_down)(lib)]\".*>"
+    prepareStr = "<con:testSuite.*name=\"(" + excludeStr + ")\".*>"
+    testSuiteStr = "<con:testSuite.*>"
+    testCaseStr = "<con:testCase.*>"
+    preparePattern = re.compile(prepareStr)
+    testSuitePattern = re.compile(testSuiteStr)
+    testCasePattern = re.compile(testCaseStr)
+    ignore = 0
+    for index in range(len(filelist)):
+        line = filelist[index]
+        if (re.search(preparePattern,line)):
+            ignore = 1
+        elif (re.search(testSuitePattern,line)):
+            ignore = 0
+            # 如果用例已被设置为不运行，则不做任何处理
+            if line.find("disabled=\"true\"") == -1:
+                line = line.replace("name=","disabled=\"true\" name=")
+        elif (re.search(testCasePattern,line) and ignore == 0):
+            if line.find("disabled=\"true\"") == -1:
+                line = line.replace("name=","disabled=\"true\" name=")
+        filelist[index] = line
+
+    # 将指定的用例设置为可运行  
+    projectName = filelist[1].split("name=\"")[1].split("\"")[0]
+    for item in enableList:
+        item = item.strip()
+        if item == projectName:
+            # 将所有的用例都设置为运行
+            ignore = 0
+            for index in range(len(filelist)):
+                line = filelist[index]
+                if (re.search(preparePattern,line)):
+                    ignore = 1
+                elif (re.search(testSuitePattern,line)):
+                    ignore = 0
+                    line = line.replace("disabled=\"true\" name=","name=")
+                elif (re.search(testCasePattern,line) and ignore == 0):
+                    line = line.replace("disabled=\"true\" name=","name=")
+                filelist[index] = line
+        else:
+            itemArray = item.split('.')
+            # 将测试用例集设置为运行
+            if len(itemArray) == 2:
+                suiteName = itemArray[1]
+                matchStr = "<con:testSuite.*name=\"" + suiteName + "\".*>"
+                ignore = 1
+                success = 0
+                for index in range(len(filelist)):
+                    line = filelist[index]
+                    if (re.search(matchStr,line)):
+                        ignore = 0
+                        success = 1
+                        filelist[index] = line.replace("disabled=\"true\" name=","name=")
+                    elif (re.search(testCasePattern,line) and ignore == 0):
+                        filelist[index] = line.replace("disabled=\"true\" name=","name=")
+                    elif (re.search(testSuitePattern,line) and ignore == 0):
+                        break
+                if success == 0:
+                    print "testsuite not found: " + item
+            # 将测试用例设置为运行
+            elif len(itemArray) == 3:
+                suiteName = itemArray[1]
+                caseName = itemArray[2]
+                matchSuiteStr = "<con:testSuite.*name=\"" + suiteName + "\".*>"
+                matchCaseStr = "<con:testCase.*name=\"" + caseName + "\".*>"
+                ignore = 1
+                success = 0
+                for index in range(len(filelist)):
+                    line = filelist[index]
+                    if (re.search(matchSuiteStr,line)):
+                        ignore = 0
+                        filelist[index] = line.replace("disabled=\"true\" name=","name=")
+                    elif (re.search(matchCaseStr,line) and ignore == 0):
+                        success = 1
+                        filelist[index] = line.replace("disabled=\"true\" name=","name=")
+                        break
+                if success == 0:
+                    print "testcase not found: " + item
+            else:
+                print "invalid format: " + item
+    return filelist
+
+# 通过xml文件解析来设置用例是否可运行。这个方法对soapui的xml破坏比较大，不采用
+def runByElementTree(xmlFile,enableStr):
+        enableList = enableStr.split(',')
+        project = ElementTree.fromstring(open(xmlFile,'r').read())
+        # 将所有的用例都设置为不运行
+        for testSuite in project.getiterator("testSuite"):
+            suiteName = testSuite.attrib["name"]
+            if suiteName != "set_up" and suiteName != "tear_down" and suiteName != "lib":
+                testSuite.set("disabled","true")
+                for testCase in testSuite.getiterator("testCase"):
+                    testCase.set("disabled","true")
+        
+        # 将指定的用例设置为可运行     
+        projectName = project.attrib["name"]
+        for item in enableList:
+            item = item.strip()
+            if item == projectName:
+                # 将所有的用例都设置为运行
+                for testSuite in project.getiterator("testSuite"):
+                    suiteName = testSuite.attrib["name"]
+                    if suiteName != "set_up" and suiteName != "tear_down" and suiteName != "lib":
+                        testSuite.set("disabled","true")
+                        for testCase in testSuite.getiterator("testCase"):
+                            testCase.set("disabled","true")
+                break
+            else:
+                itemArray = item.split('.')
+                # 将测试用例集设置为运行
+                if len(itemArray)== 2:
+                    suiteName = itemArray[1]
+                    if suiteName != "set_up" and suiteName != "tear_down" and suiteName != "lib":
+                        testSuite = project.find("/testSuite[@name=\"" + suiteName + "\"]")
+                        testSuite.set("disabled","false")
+                        for testCase in testSuite.getiterator("testCase"):
+                            testCase.set("disabled","false")
+                # 将测试用例设置为运行
+                elif len(itemArray) == 3:
+                    suiteName = itemArray[1]
+                    caseName = itemArray[2]
+                    if suiteName != "set_up" and suiteName != "tear_down" and suiteName != "lib":
+                        testSuite = project.find("/testSuite[@name=\"" + suiteName + "\"]")
+                        testCase = testSuite.find("/testCase[@name=\"" + caseName + "\"]")
+                        testSuite.set("disabled","false")
+                        testCase.set("disabled","false")
+                else:
+                    print "invalid format:" + item
+
+        tree = ElementTree.ElementTree(project)
+        tree.write(xmlFile,'utf8')
+
+
+if __name__ == "__main__":        
+        xmlFile = sys.argv[1]
+        enableStr = sys.argv[2]
+        excludeStr = sys.argv[3]
+        filelist = runByUpdateStr(xmlFile,enableStr,excludeStr)
+        fop = open(xmlFile,'w')
+        fop.writelines(filelist)
+        fop.close()
